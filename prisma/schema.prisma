@@ -1,0 +1,139 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // In a real app this is hashed
+  name      String
+  role      String   // "ADMIN", "TEACHER", "STUDENT"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile relations
+  student   Student?
+  teacher   Teacher?
+}
+
+model Student {
+  id           String       @id @default(uuid())
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classId      String
+  class        Class        @relation(fields: [classId], references: [id])
+  rollNumber   String
+  parentName   String
+  parentPhone  String
+  address      String
+  dateOfBirth  DateTime
+  gender       String       // "MALE", "FEMALE", "OTHER"
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  attendance   Attendance[]
+  examResults  ExamResult[]
+  fees         Fee[]
+}
+
+model Teacher {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId  String    @unique
+  department  String
+  phone       String
+  address     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  subjects    Subject[]
+  classTaught Class[]   @relation("ClassTeacher")
+}
+
+model Class {
+  id        String    @id @default(uuid())
+  name      String    @unique // e.g. "Grade 10-A", "Grade 11-B"
+  teacherId String?   // Class Teacher
+  teacher   Teacher?  @relation("ClassTeacher", fields: [teacherId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  students    Student[]
+  subjects    Subject[]
+  attendance  Attendance[]
+}
+
+model Subject {
+  id        String   @id @default(uuid())
+  name      String   // e.g. "Mathematics"
+  code      String   // e.g. "MATH101"
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exams     Exam[]
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  date      DateTime // Format: YYYY-MM-DD
+  status    String   // "PRESENT", "ABSENT", "LATE"
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, date])
+}
+
+model Exam {
+  id          String       @id @default(uuid())
+  name        String       // e.g. "Midterm Exam", "Final Exam"
+  date        DateTime
+  subjectId   String
+  subject     Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  maxMarks    Int          @default(100)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  examResults ExamResult[]
+}
+
+model ExamResult {
+  id            String   @id @default(uuid())
+  examId        String
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  marksObtained Float
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([examId, studentId])
+}
+
+model Fee {
+  id          String    @id @default(uuid())
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  title       String    // e.g. "Tuition Fee - Q3"
+  amount      Float
+  dueDate     DateTime
+  status      String    // "PAID", "PENDING", "OVERDUE"
+  paidAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
